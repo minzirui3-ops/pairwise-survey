@@ -5,31 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>成对比较问卷（受访者）</title>
 
-  <!-- 自动补齐参数（manifest / rid），endpoint 强制使用固定地址 -->
   <script>
+  // 首屏把必要参数写进地址栏（rid 仍可自动生成），但 endpoint 固定，不再受 URL 覆盖
   (function () {
     const qs = new URLSearchParams(location.search);
-
-    // 固定 manifest & endpoint（不再被 URL 覆盖）
     const manifest = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
-    const endpoint = 'https://1373549665-9ect2df42n.ap-guangzhou.tencentscf.com/submit';
+    const endpoint  = 'https://1373549665-9ect2df42n.ap-guangzhou.tencentscf.com/submit';
 
-    // rid 仍然支持首次自动生成并存本地
     let rid = qs.get('rid') || localStorage.getItem('rid');
     if (!rid) { rid = 'guest-' + Math.floor(Math.random() * 1e6); localStorage.setItem('rid', rid); }
-
     if (!qs.get('k')) qs.set('k', '5');
     if (!qs.get('allowTie')) qs.set('allowTie', '1');
 
-    // 把 manifest 与 endpoint 写死到地址栏，避免旧参数干扰
     qs.set('manifest', manifest);
-    qs.set('endpoint', endpoint);
+    qs.set('endpoint', endpoint);   // 只是写到地址栏用于可见性，真正请求下方使用固定常量
     qs.set('rid', rid);
 
-    const url = new URL(location.href);
-    url.search = qs.toString();
-    if (location.search !== ('?' + qs.toString())) {
-      location.replace(url.toString()); // 刷到带参数的地址
+    const next = '?' + qs.toString();
+    if (location.search !== next) {
+      const url = new URL(location.href);
+      url.search = qs.toString();
+      location.replace(url.toString());
     }
   })();
   </script>
@@ -37,18 +33,12 @@
   <style>
     :root { --bg:#0b1020; --card:#121933; --muted:#94a3b8; --text:#e5e7eb; --accent:#60a5fa; }
     * { box-sizing: border-box; }
-    body {
-      margin: 0; background: linear-gradient(180deg,#0b1020,#0f172a);
-      color: var(--text); font-family: system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,Arial;
-    }
+    body { margin:0; background:linear-gradient(180deg,#0b1020,#0f172a); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,Arial; }
     header { padding:16px 18px; border-bottom:1px solid #1f2a44; background:rgba(0,0,0,.25); backdrop-filter:blur(6px); }
     .wrap { max-width:1080px; margin:0 auto; padding:12px; }
     .pill { display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border:1px solid #334155; border-radius:9999px; background:#0b1226; color:#cbd5e1; font-size:12px; }
     .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
-    .slot {
-      position:relative; height:60vh; min-height:340px; border-radius:16px; overflow:hidden;
-      background:#0b1226; border:1px solid #1f2a44; display:flex; align-items:center; justify-content:center;
-    }
+    .slot { position:relative; height:60vh; min-height:340px; border-radius:16px; overflow:hidden; background:#0b1226; border:1px solid #1f2a44; display:flex; align-items:center; justify-content:center; }
     .slot img { max-width:100%; max-height:100%; object-fit:contain; transition:opacity .12s ease; }
     .slot .tag { position:absolute; top:10px; left:10px; background:rgba(2,6,23,.6); border:1px solid #334155; color:#cbd5e1; padding:6px 10px; border-radius:9999px; font-size:12px; }
     .controls { display:flex; gap:10px; justify-content:center; padding:12px; }
@@ -72,7 +62,7 @@
       </div>
       <div class="row"><span class="tip">按键：A=A好，L=B好，E=一样好，S=跳过</span></div>
     </div>
-    <div class="progress" style="margin-top: 10px"><span id="bar"></span></div>
+    <div class="progress" style="margin-top:10px"><span id="bar"></span></div>
   </header>
 
   <main class="wrap">
@@ -91,7 +81,7 @@
 
   <script>
     (function () {
-      // 固定端点（不再读 URL 参数）
+      // 固定端点 & manifest（避免被 URL 参数覆盖）
       const manifestURL = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
       const endpointURL = 'https://1373549665-9ect2df42n.ap-guangzhou.tencentscf.com/submit';
 
@@ -112,26 +102,21 @@
         location.reload();
         return;
       }
-
       who.textContent = respondent;
       sess.textContent = sessionId;
 
-      // ===== State =====
-      let images = [], names = [];
-      let counts = new Map();
-      let pairSeen = new Set();
-      let plan = [];
-      let idx = 0;
-      let cur = null;
+      // ---- 状态 ----
+      let images = [], names = [], counts = new Map(), pairSeen = new Set(), plan = [];
+      let idx = 0, cur = null;
 
-      const DECODE_WINDOW = 4;
       const decodedCache = new Map();
       const toWebp = (u)=> u.replace(/\.png$/i, '.webp');
 
+      // 关键：避免预检 → 用 text/plain；后端用 express.text() + JSON.parse
       function postResult(payload){
         fetch(endpointURL, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "text/plain;charset=UTF-8" },
           body: JSON.stringify(payload),
           keepalive: true
         }).catch(()=>{});
@@ -226,7 +211,17 @@
         img.src = urlWebp;
       }
 
-      function decodeImage(url){
+      async function preparePair(i){
+        if (decodedCache.has(i) || i >= plan.length) return;
+        const p = plan[i];
+        const uA = images[names.indexOf(p.a)];
+        const uB = images[names.indexOf(p.b)];
+        const aOk = await preload(toWebp(uA)) || await preload(uA);
+        const bOk = await preload(toWebp(uB)) || await preload(uB);
+        if (aOk && bOk) decodedCache.set(i, { aUrl: aOk, bUrl: bOk });
+      }
+
+      function preload(url){
         return new Promise((resolve)=>{
           const im = new Image();
           im.decoding = 'async';
@@ -238,19 +233,7 @@
         });
       }
 
-      async function preparePair(i){
-        if (decodedCache.has(i) || i >= plan.length) return;
-        const p = plan[i];
-        const uA = images[names.indexOf(p.a)];
-        const uB = images[names.indexOf(p.b)];
-        const aOk = await decodeImage(toWebp(uA)) || await decodeImage(uA);
-        const bOk = await decodeImage(toWebp(uB)) || await decodeImage(uB);
-        if (aOk && bOk) decodedCache.set(i, { aUrl: aOk, bUrl: bOk });
-      }
-
-      function warmUpFrom(i){
-        for (let k = 0; k <= 4; k++) preparePair(i + k);
-      }
+      function warmUpFrom(i){ for (let k=1;k<=4;k++) preparePair(i+k); }
 
       function render() {
         if (idx >= plan.length) {
@@ -258,10 +241,9 @@
           prog.textContent = `${plan.length} / ${plan.length}`;
           bar.style.width = "100%";
           pairInfo.textContent = left > 0
-            ? `本轮已完成。剩余理论最少配对约 ${left} 组（基于K=${minK}的估计）。`
+            ? `本轮已完成。剩余理论最少配对约 ${left} 组（基于K=${minK}）`
             : "本轮已完成，感谢参与！";
-          imgA.removeAttribute("src");
-          imgB.removeAttribute("src");
+          imgA.removeAttribute("src"); imgB.removeAttribute("src");
           return;
         }
 
@@ -270,29 +252,22 @@
         const urlB = images[names.indexOf(cur.b)];
 
         const cached = decodedCache.get(idx);
-        if (cached) {
-          imgA.src = cached.aUrl;
-          imgB.src = cached.bUrl;
-        } else {
-          setWithFallback(imgA, urlA);
-          setWithFallback(imgB, urlB);
-        }
+        if (cached) { imgA.src = cached.aUrl; imgB.src = cached.bUrl; }
+        else { setWithFallback(imgA, urlA); setWithFallback(imgB, urlB); }
 
         pairInfo.textContent = `第 ${idx + 1}/${plan.length} 组｜A: ${cur.a} ｜ B: ${cur.b}`;
         prog.textContent = `${idx}/${plan.length}`;
         bar.style.width = `${(idx / plan.length) * 100}%`;
 
-        warmUpFrom(idx + 1);
+        warmUpFrom(idx);
         decodedCache.delete(idx - 2);
       }
 
       function vote(choice) {
         if (idx >= plan.length) return;
 
-        if (choice !== "skip") {
-          counts.set(cur.a, (counts.get(cur.a) || 0) + 1);
-          counts.set(cur.b, (counts.get(cur.b) || 0) + 1);
-        }
+        counts.set(cur.a, (counts.get(cur.a) || 0) + 1);
+        counts.set(cur.b, (counts.get(cur.b) || 0) + 1);
 
         const payload = {
           timestamp: new Date().toISOString(),
@@ -300,17 +275,16 @@
           round_idx: idx + 1,
           image_a: cur.a,
           image_b: cur.b,
-          choice: choice,
+          choice,
           pair_id: pairKey(cur.a, cur.b),
           session_id: sessionId
         };
 
         postResult(payload);
-        idx++;
-        render();
+        idx++; render();
       }
 
-      function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } }
+      function shuffle(arr){ for (let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
     })();
   </script>
 </body>
