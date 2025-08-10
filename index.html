@@ -1,207 +1,216 @@
-<script>
-(function () {
-  // 固定端点 & manifest（避免被 URL 参数覆盖）
-  const manifestURL = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
-  const endpointURL = 'https://daili-jogcnerjku.cn-hangzhou.fcapp.run/submit';
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>成对比较问卷（受访者）</title>
+  <style>
+    :root { --bg:#0b1020; --card:#121933; --muted:#94a3b8; --text:#e5e7eb; --accent:#60a5fa; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:linear-gradient(180deg,#0b1020,#0f172a); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,Arial; }
+    header { padding:16px 18px; border-bottom:1px solid #1f2a44; background:rgba(0,0,0,.25); backdrop-filter:blur(6px); }
+    .wrap { max-width:1080px; margin:0 auto; padding:12px; }
+    .pill { display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border:1px solid #334155; border-radius:9999px; background:#0b1226; color:#cbd5e1; font-size:12px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+    .slot { position:relative; height:60vh; min-height:340px; border-radius:16px; overflow:hidden; background:#0b1226; border:1px solid #1f2a44; display:flex; align-items:center; justify-content:center; }
+    .slot img { max-width:100%; max-height:100%; object-fit:contain; transition:opacity .12s ease; }
+    .slot .tag { position:absolute; top:10px; left:10px; background:rgba(2,6,23,.6); border:1px solid #334155; color:#cbd5e1; padding:6px 10px; border-radius:9999px; font-size:12px; }
+    .controls { display:flex; gap:10px; justify-content:center; padding:12px; }
+    .btn { padding:10px 14px; border:none; border-radius:12px; background:#1e293b; color:var(--text); cursor:pointer; min-width:120px; font-weight:600; }
+    .btn.primary { background:linear-gradient(135deg,#2563eb,#60a5fa); }
+    .muted { color:#94a3b8; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .progress { height:8px; background:#0b1226; border:1px solid #334155; border-radius:9999px; overflow:hidden; }
+    .progress>span { display:block; height:100%; background:linear-gradient(90deg,#22d3ee,#60a5fa); width:0%; }
+    .tip { font-size:12px; color:#94a3b8; margin-top:8px; }
+  </style>
+</head>
+<body>
+  <header class="wrap">
+    <div class="row" style="justify-content: space-between">
+      <div class="row">
+        <span class="pill">受访者：<b id="who">-</b></span>
+        <span class="pill">会话：<b id="sess">-</b></span>
+        <span class="pill">进度：<b id="prog">0 / 0</b></span>
+      </div>
+      <div class="row"><span class="tip">按键：A=A好，L=B好，E=一样好，S=跳过</span></div>
+    </div>
+    <div class="progress" style="margin-top:10px"><span id="bar"></span></div>
+  </header>
 
-  const $ = (s) => document.querySelector(s);
-  const qs = new URLSearchParams(location.search);
+  <main class="wrap">
+    <div class="grid">
+      <div class="slot"><span class="tag">A</span><img id="imgA" alt="A" loading="lazy" decoding="async" fetchpriority="high" /></div>
+      <div class="slot"><span class="tag">B</span><img id="imgB" alt="B" loading="lazy" decoding="async" /></div>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="voteA">A好 (A)</button>
+      <button class="btn" id="voteTie">一样好 (E)</button>
+      <button class="btn primary" id="voteB">B好 (L)</button>
+      <button class="btn" id="voteSkip">跳过 (S)</button>
+    </div>
+    <p class="muted" id="pairInfo">加载中…</p>
+  </main>
 
-  const allowTie = qs.get("allowTie") !== "0";
-  const minK = parseInt(qs.get("k") || "5", 10);
-  const respondent = (qs.get("rid") || localStorage.getItem('rid') || '').trim();
-  const sessionId = "" + Date.now();
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const manifestURL = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
+    const endpointURL = 'https://1373549665-9ect2df42n.ap-guangzhou.tencentscf.com/submit';
+    const $ = (s) => document.querySelector(s);
 
-  const prog = $("#prog"), bar = $("#bar"), who = $("#who"), sess = $("#sess");
-  const imgA = $("#imgA"), imgB = $("#imgB"), pairInfo = $("#pairInfo");
+    const prog = $("#prog"), bar = $("#bar"), who = $("#who"), sess = $("#sess");
+    const imgA = $("#imgA"), imgB = $("#imgB"), pairInfo = $("#pairInfo");
 
-  if (!respondent) {
-    const gen = 'guest-' + Math.floor(Math.random() * 1e6);
-    localStorage.setItem('rid', gen);
-    location.reload();
-    return;
-  }
-  who.textContent = respondent;
-  sess.textContent = sessionId;
+    const qs = new URLSearchParams(location.search);
+    const allowTie = qs.get("allowTie") !== "0";
+    const minK = parseInt(qs.get("k") || "5", 10);
 
-  let images = [], names = [], counts = new Map(), pairSeen = new Set(), plan = [];
-  let idx = 0, cur = null;
+    let respondent = qs.get("rid") || localStorage.getItem('rid');
+    if (!respondent) {
+      respondent = 'guest-' + Math.floor(Math.random() * 1e6);
+      localStorage.setItem('rid', respondent);
+    }
+    const sessionId = "" + Date.now();
 
-  const decodedCache = new Map();
-  const toWebp = (u)=> u.replace(/\.png$/i, '.webp');
+    if (who) who.textContent = respondent;
+    if (sess) sess.textContent = sessionId;
 
-  // 直接 application/json
-  function postResult(payload){
-    fetch(endpointURL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      keepalive: true
-    }).catch(()=>{});
-  }
+    let images = [], names = [], counts = new Map(), pairSeen = new Set(), plan = [];
+    let idx = 0, cur = null;
+    const decodedCache = new Map();
+    const toWebp = (u) => u.replace(/\.png$/i, '.webp');
 
-  ["voteA","voteB","voteTie","voteSkip"].forEach(id=>{
-    const el = document.getElementById(id);
-    el.addEventListener('pointerdown', e=>{
-      e.preventDefault();
-      if(id==="voteA") vote(1);
-      else if(id==="voteB") vote(-1);
-      else if(id==="voteTie" && allowTie) vote(0);
-      else if(id==="voteSkip") vote('skip');
-    }, {passive:false});
-  });
+    function postResult(payload){
+      fetch(endpointURL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+        body: JSON.stringify(payload),
+        keepalive: true
+      }).catch(()=>{});
+    }
 
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "a" || e.key === "A") vote(1);
-    if (e.key === "l" || e.key === "L") vote(-1);
-    if (e.key === "e" || e.key === "E") if (allowTie) vote(0);
-    if (e.key === "s" || e.key === "S") vote("skip");
-  });
-
-  fetch(manifestURL)
-    .then((r) => r.json())
-    .then((list) => {
-      images = list.filter((u) => typeof u === "string");
-      names  = images.map((u) => u.split("/").pop());
-      names.forEach((n) => counts.set(n, 0));
-      buildPlan();
-      render();
-    })
-    .catch((err) => {
-      console.error(err);
-      alert("加载 manifest 失败");
+    ["voteA","voteB","voteTie","voteSkip"].forEach(id=>{
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('pointerdown', e=>{
+        e.preventDefault();
+        if(id==="voteA") vote(1);
+        else if(id==="voteB") vote(-1);
+        else if(id==="voteTie" && allowTie) vote(0);
+        else if(id==="voteSkip") vote('skip');
+      }, {passive:false});
     });
 
-  function pairKey(a, b) { return [a, b].sort().join("__"); }
-  function needPairsLeft() {
-    const shortage = names.reduce((acc, n) => acc + Math.max(0, minK - (counts.get(n) || 0)), 0);
-    return Math.ceil(shortage / 2);
-  }
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "a" || e.key === "A") vote(1);
+      if (e.key === "l" || e.key === "L") vote(-1);
+      if (e.key === "e" || e.key === "E") if (allowTie) vote(0);
+      if (e.key === "s" || e.key === "S") vote("skip");
+    });
 
-  function buildPlan() {
-    plan = [];
-    const cnt = new Map(counts);
-    const need = new Set(names.filter((n) => (cnt.get(n) || 0) < minK));
-    while (need.size) {
-      const x = Array.from(need).sort((a, b) =>
-        (cnt.get(a) || 0) - (cnt.get(b) || 0) || Math.random() - 0.5
-      )[0];
-      const candidates = names.slice().sort((a, b) =>
-        (cnt.get(a) || 0) - (cnt.get(b) || 0) || Math.random() - 0.5
-      );
-      let paired = false;
-      for (const y of candidates) {
-        if (y === x) continue;
-        const key = pairKey(x, y);
-        if (pairSeen.has(key)) continue;
-        plan.push({ a: x, b: y });
-        pairSeen.add(key);
-        cnt.set(x, (cnt.get(x) || 0) + 1);
-        cnt.set(y, (cnt.get(y) || 0) + 1);
-        if ((cnt.get(x) || 0) >= minK) need.delete(x);
-        if (need.has(y) && (cnt.get(y) || 0) >= minK) need.delete(y);
-        paired = true; break;
-      }
-      if (!paired) {
-        for (const y of names) {
+    fetch(manifestURL)
+      .then((r) => r.json())
+      .then((list) => {
+        images = list.filter((u) => typeof u === "string");
+        names  = images.map((u) => u.split("/").pop());
+        names.forEach((n) => counts.set(n, 0));
+        buildPlan();
+        render();
+      })
+      .catch((err) => {
+        console.error(err);
+        alert("加载 manifest 失败");
+      });
+
+    function pairKey(a, b) { return [a, b].sort().join("__"); }
+    function needPairsLeft() {
+      const shortage = names.reduce((acc, n) => acc + Math.max(0, minK - (counts.get(n) || 0)), 0);
+      return Math.ceil(shortage / 2);
+    }
+
+    function buildPlan() {
+      plan = [];
+      const cnt = new Map(counts);
+      const need = new Set(names.filter((n) => (cnt.get(n) || 0) < minK));
+      while (need.size) {
+        const x = Array.from(need).sort((a, b) =>
+          (cnt.get(a) || 0) - (cnt.get(b) || 0) || Math.random() - 0.5
+        )[0];
+        const candidates = names.slice().sort((a, b) =>
+          (cnt.get(a) || 0) - (cnt.get(b) || 0) || Math.random() - 0.5
+        );
+        let paired = false;
+        for (const y of candidates) {
           if (y === x) continue;
           const key = pairKey(x, y);
-          if (!pairSeen.has(key)) {
-            plan.push({ a: x, b: y });
-            pairSeen.add(key);
-            cnt.set(x, (cnt.get(x) || 0) + 1);
-            cnt.set(y, (cnt.get(y) || 0) + 1);
-            if ((cnt.get(x) || 0) >= minK) need.delete(x);
-            if (need.has(y) && (cnt.get(y) || 0) >= minK) need.delete(y);
-            paired = true; break;
-          }
+          if (pairSeen.has(key)) continue;
+          plan.push({ a: x, b: y });
+          pairSeen.add(key);
+          cnt.set(x, (cnt.get(x) || 0) + 1);
+          cnt.set(y, (cnt.get(y) || 0) + 1);
+          if ((cnt.get(x) || 0) >= minK) need.delete(x);
+          if (need.has(y) && (cnt.get(y) || 0) >= minK) need.delete(y);
+          paired = true; break;
         }
+        if (!paired) break;
       }
-      if (!paired) break;
-    }
-    shuffle(plan);
-    idx = 0;
-  }
-
-  function setWithFallback(img, urlPng){
-    const urlWebp = toWebp(urlPng);
-    img.onerror = function(){ img.onerror = null; img.src = urlPng; };
-    img.src = urlWebp;
-  }
-
-  async function preparePair(i){
-    if (decodedCache.has(i) || i >= plan.length) return;
-    const p = plan[i];
-    const uA = images[names.indexOf(p.a)];
-    const uB = images[names.indexOf(p.b)];
-    const aOk = await preload(toWebp(uA)) || await preload(uA);
-    const bOk = await preload(toWebp(uB)) || await preload(uB);
-    if (aOk && bOk) decodedCache.set(i, { aUrl: aOk, bUrl: bOk });
-  }
-
-  function preload(url){
-    return new Promise((resolve)=>{
-      const im = new Image();
-      im.decoding = 'async';
-      im.loading  = 'eager';
-      im.src = url;
-      (im.decode?.() || Promise.resolve()).then(()=>resolve(url)).catch(()=>{});
-      im.onload = ()=> resolve(url);
-      im.onerror = ()=> resolve(null);
-    });
-  }
-
-  function warmUpFrom(i){ for (let k=1;k<=4;k++) preparePair(i+k); }
-
-  function render() {
-    if (idx >= plan.length) {
-      const left = needPairsLeft();
-      prog.textContent = `${plan.length} / ${plan.length}`;
-      bar.style.width = "100%";
-      pairInfo.textContent = left > 0
-        ? `本轮已完成。剩余理论最少配对约 ${left} 组（基于K=${minK}）`
-        : "本轮已完成，感谢参与！";
-      imgA.removeAttribute("src"); imgB.removeAttribute("src");
-      return;
+      shuffle(plan);
+      idx = 0;
     }
 
-    cur = plan[idx];
-    const urlA = images[names.indexOf(cur.a)];
-    const urlB = images[names.indexOf(cur.b)];
+    function setWithFallback(img, urlPng){
+      const urlWebp = toWebp(urlPng);
+      img.onerror = function(){ img.onerror = null; img.src = urlPng; };
+      img.src = urlWebp;
+    }
 
-    const cached = decodedCache.get(idx);
-    if (cached) { imgA.src = cached.aUrl; imgB.src = cached.bUrl; }
-    else { setWithFallback(imgA, urlA); setWithFallback(imgB, urlB); }
+    function render() {
+      if (idx >= plan.length) {
+        const left = needPairsLeft();
+        if (prog) prog.textContent = `${plan.length} / ${plan.length}`;
+        if (bar) bar.style.width = "100%";
+        if (pairInfo) pairInfo.textContent = left > 0
+          ? `本轮已完成。剩余理论最少配对约 ${left} 组（基于K=${minK}）`
+          : "本轮已完成，感谢参与！";
+        return;
+      }
+      cur = plan[idx];
+      const urlA = images[names.indexOf(cur.a)];
+      const urlB = images[names.indexOf(cur.b)];
+      setWithFallback(imgA, urlA);
+      setWithFallback(imgB, urlB);
 
-    pairInfo.textContent = `第 ${idx + 1}/${plan.length} 组｜A: ${cur.a} ｜ B: ${cur.b}`;
-    prog.textContent = `${idx}/${plan.length}`;
-    bar.style.width = `${(idx / plan.length) * 100}%`;
+      if (pairInfo) pairInfo.textContent = `第 ${idx + 1}/${plan.length} 组｜A: ${cur.a} ｜ B: ${cur.b}`;
+      if (prog) prog.textContent = `${idx}/${plan.length}`;
+      if (bar) bar.style.width = `${(idx / plan.length) * 100}%`;
+    }
 
-    warmUpFrom(idx);
-    decodedCache.delete(idx - 2);
-  }
+    function vote(choice) {
+      if (idx >= plan.length) return;
+      counts.set(cur.a, (counts.get(cur.a) || 0) + 1);
+      counts.set(cur.b, (counts.get(cur.b) || 0) + 1);
 
-  function vote(choice) {
-    if (idx >= plan.length) return;
+      const payload = {
+        timestamp: new Date().toISOString(),
+        respondent_id: respondent,
+        round_idx: idx + 1,
+        image_a: cur.a,
+        image_b: cur.b,
+        choice,
+        pair_id: pairKey(cur.a, cur.b),
+        session_id: sessionId
+      };
+      postResult(payload);
+      idx++; render();
+    }
 
-    counts.set(cur.a, (counts.get(cur.a) || 0) + 1);
-    counts.set(cur.b, (counts.get(cur.b) || 0) + 1);
-
-    const payload = {
-      timestamp: new Date().toISOString(),
-      respondent_id: respondent || "anonymous",
-      round_idx: idx + 1,
-      image_a: cur.a,
-      image_b: cur.b,
-      choice,
-      pair_id: pairKey(cur.a, cur.b),
-      session_id: sessionId
-    };
-
-    postResult(payload);
-    idx++; render();
-  }
-
-  function shuffle(arr){ for (let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
-})();
-</script>
+    function shuffle(arr){
+      for (let i=arr.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [arr[i],arr[j]]=[arr[j],arr[i]];
+      }
+    }
+  });
+  </script>
+</body>
+</html>
