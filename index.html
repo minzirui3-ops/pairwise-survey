@@ -1,166 +1,221 @@
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  // === 常量 ===
-  var MANIFEST_URL = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
-  var ALIYUN_ENDPOINT = 'https://daili-jogcnerjku.cn-hangzhou.fcapp.run/submit';
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>成对比较问卷（受访者）</title>
 
-  // === 元素 ===
-  function $(s){ return document.querySelector(s); }
-  var who = $('#who'), sess = $('#sess'), prog = $('#prog'), bar = $('#bar');
-  var imgA = $('#imgA'), imgB = $('#imgB'), pairInfo = $('#pairInfo');
+  <!-- 入口脚本：强制把地址栏里的 manifest/endpoint/rid 设为指定值 -->
+  <script>
+  (function () {
+    var qs = new URLSearchParams(location.search);
 
-  // === 参与者/会话 ===
-  var qs = new URLSearchParams(location.search);
-  var allowTie = qs.get('allowTie') !== '0';
-  var minK = parseInt(qs.get('k') || '5', 10);
-  var respondent = (qs.get('rid') || '').trim();
-  var sessionId = String(Date.now());
-  if (who)  who.textContent  = respondent || 'anonymous';
-  if (sess) sess.textContent = sessionId;
+    // 固定：图片清单 与 阿里云后端（不要从 URL 读取）
+    var MANIFEST = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
+    var ENDPOINT = 'https://daili-jogcnerjku.cn-hangzhou.fcapp.run/submit'; // ← 如有不同，改成你的阿里云 /submit
 
-  // === 状态 ===
-  var images = [];   // 全部图片 URL
-  var names  = [];   // 文件名
-  var counts = {};   // name -> 次数
-  var pairSeen = {}; // 'a__b' -> true
-  var plan = [];     // [{a,b}]
-  var idx = 0;       // 当前指针
-  var cur = null;    // 当前 pair
+    // 每个浏览器唯一 rid（生成一次并复用）
+    var rid = qs.get('rid') || localStorage.getItem('rid');
+    if (!rid) { rid = 'guest-' + Math.floor(Math.random() * 1e6); localStorage.setItem('rid', rid); }
 
-  // === 事件 ===
-  var btnA = $('#voteA'), btnB = $('#voteB'), btnT = $('#voteTie'), btnS = $('#voteSkip');
-  if (btnA) btnA.onclick = function(){ vote(1); };
-  if (btnB) btnB.onclick = function(){ vote(-1); };
-  if (btnT) btnT.onclick = function(){ if (allowTie) vote(0); };
-  if (btnS) btnS.onclick = function(){ vote('skip'); };
-  document.addEventListener('keydown', function(e){
-    if (e.key === 'a' || e.key === 'A') vote(1);
-    if (e.key === 'l' || e.key === 'L') vote(-1);
-    if (e.key === 'e' || e.key === 'E') { if (allowTie) vote(0); }
-    if (e.key === 's' || e.key === 'S') vote('skip');
-  });
+    // 覆盖地址栏
+    qs.set('manifest', MANIFEST);
+    qs.set('endpoint', ENDPOINT);
+    if (!qs.get('k')) qs.set('k', '5');
+    if (!qs.get('allowTie')) qs.set('allowTie', '1');
+    qs.set('rid', rid);
 
-  // === 加载清单 ===
-  fetch(MANIFEST_URL).then(function(r){return r.json();}).then(function(list){
-    images = list.filter(function(u){ return typeof u === 'string'; });
-    names  = images.map(function(u){ return u.split('/').pop(); });
-    names.forEach(function(n){ counts[n] = 0; });
-    buildPlan();
-    render();
-  }).catch(function(err){
-    console.error(err);
-    if (pairInfo) pairInfo.textContent = '加载清单失败';
-  });
+    var next = '?' + qs.toString();
+    if (location.search !== next) {
+      var url = new URL(location.href);
+      url.search = qs.toString();
+      location.replace(url.toString());
+    }
+  })();
+  </script>
 
-  function pairKey(a,b){
-    return [a,b].sort().join('__');
-  }
+  <style>
+    :root { --bg:#0b1020; --card:#121933; --muted:#94a3b8; --text:#e5e7eb; --accent:#60a5fa; }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b1020,#0f172a);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,Arial}
+    header{padding:16px 18px;border-bottom:1px solid #1f2a44;background:rgba(0,0,0,.25);backdrop-filter:blur(6px)}
+    .wrap{max-width:1080px;margin:0 auto;padding:12px}
+    .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border:1px solid #334155;border-radius:9999px;background:#0b1226;color:#cbd5e1;font-size:12px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+    .slot{position:relative;height:60vh;min-height:340px;border-radius:16px;overflow:hidden;background:#0b1226;border:1px solid #1f2a44;display:flex;align-items:center;justify-content:center}
+    .slot img{max-width:100%;max-height:100%;object-fit:contain}
+    .slot .tag{position:absolute;top:10px;left:10px;background:rgba(2,6,23,.6);border:1px solid #334155;color:#cbd5e1;padding:6px 10px;border-radius:9999px;font-size:12px}
+    .controls{display:flex;gap:10px;justify-content:center;padding:12px}
+    .btn{padding:10px 14px;border:none;border-radius:12px;background:#1e293b;color:var(--text);cursor:pointer;min-width:120px;font-weight:600}
+    .btn.primary{background:linear-gradient(135deg,#2563eb,#60a5fa)}
+    .muted{color:#94a3b8}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .progress{height:8px;background:#0b1226;border:1px solid #334155;border-radius:9999px;overflow:hidden}
+    .progress>span{display:block;height:100%;background:linear-gradient(90deg,#22d3ee,#60a5fa);width:0%}
+  </style>
+</head>
 
-  function needPairsLeft(){
-    var shortage = names.reduce(function(acc, n){
-      var c = counts[n] || 0;
-      var lack = Math.max(0, minK - c);
-      return acc + lack;
-    }, 0);
-    return Math.ceil(shortage / 2);
-  }
+<body>
+  <header class="wrap">
+    <div class="row" style="justify-content: space-between">
+      <div class="row">
+        <span class="pill">受访者：<b id="who">-</b></span>
+        <span class="pill">会话：<b id="sess">-</b></span>
+        <span class="pill">进度：<b id="prog">0 / 0</b></span>
+      </div>
+      <div class="row"><span class="muted">按键：A=A好，L=B好，E=一样好，S=跳过</span></div>
+    </div>
+    <div class="progress" style="margin-top:10px"><span id="bar"></span></div>
+  </header>
 
-  function buildPlan(){
-    plan = [];
-    var cnt = {};
-    names.forEach(function(n){ cnt[n] = counts[n] || 0; });
-    var need = names.filter(function(n){ return (cnt[n] || 0) < minK; });
+  <main class="wrap">
+    <div class="grid">
+      <div class="slot"><span class="tag">A</span><img id="imgA" alt="A" loading="lazy" decoding="async" fetchpriority="high" /></div>
+      <div class="slot"><span class="tag">B</span><img id="imgB" alt="B" loading="lazy" decoding="async" /></div>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="voteA">A好 (A)</button>
+      <button class="btn" id="voteTie">一样好 (E)</button>
+      <button class="btn primary" id="voteB">B好 (L)</button>
+      <button class="btn" id="voteSkip">跳过 (S)</button>
+    </div>
+    <p class="muted" id="pairInfo">加载中…</p>
+  </main>
 
-    // 简化匹配逻辑：按需要度贪心配对
-    while (need.length > 0) {
-      need.sort(function(a,b){ return (cnt[a]||0) - (cnt[b]||0); });
-      var x = need[0];
-      var candidates = names.slice().sort(function(a,b){ return (cnt[a]||0) - (cnt[b]||0); });
+  <!-- 主逻辑脚本：固定发往阿里云，不再读取地址栏 endpoint -->
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    function $(s){ return document.querySelector(s); }
 
-      var paired = false;
-      for (var i=0;i<candidates.length;i++){
-        var y = candidates[i];
-        if (y === x) continue;
-        var key = pairKey(x,y);
-        if (pairSeen[key]) continue;
-        plan.push({a:x,b:y});
-        pairSeen[key] = true;
-        cnt[x] = (cnt[x]||0) + 1;
-        cnt[y] = (cnt[y]||0) + 1;
-        paired = true;
-        break;
+    // 从地址栏拿 manifest / rid 等；endpoint 忽略，始终用常量
+    var qs = new URLSearchParams(location.search);
+    var MANIFEST_URL    = qs.get('manifest');
+    var ALIYUN_ENDPOINT = 'https://daili-jogcnerjku.cn-hangzhou.fcapp.run/submit'; // ← 如果不同，改这里
+
+    var allowTie = qs.get('allowTie') !== '0';
+    var minK = parseInt(qs.get('k') || '5', 10);
+    var respondent = (qs.get('rid') || '').trim();
+    var sessionId  = String(Date.now());
+
+    var who = $('#who'), sess = $('#sess'), prog = $('#prog'), bar = $('#bar');
+    var imgA = $('#imgA'), imgB = $('#imgB'), pairInfo = $('#pairInfo');
+    if (who)  who.textContent  = respondent || 'anonymous';
+    if (sess) sess.textContent = sessionId;
+
+    var images = [], names = [], counts = {}, pairSeen = {}, plan = [], idx = 0, cur = null;
+
+    var btnA = $('#voteA'), btnB = $('#voteB'), btnT = $('#voteTie'), btnS = $('#voteSkip');
+    if (btnA) btnA.onclick = function(){ vote(1); };
+    if (btnB) btnB.onclick = function(){ vote(-1); };
+    if (btnT) btnT.onclick = function(){ if (allowTie) vote(0); };
+    if (btnS) btnS.onclick = function(){ vote('skip'); };
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'a' || e.key === 'A') vote(1);
+      if (e.key === 'l' || e.key === 'L') vote(-1);
+      if (e.key === 'e' || e.key === 'E') { if (allowTie) vote(0); }
+      if (e.key === 's' || e.key === 'S') vote('skip');
+    });
+
+    // 加载图片清单
+    fetch(MANIFEST_URL).then(function(r){return r.json();}).then(function(list){
+      images = list.filter(function(u){ return typeof u === 'string'; });
+      names  = images.map(function(u){ return u.split('/').pop(); });
+      names.forEach(function(n){ counts[n] = 0; });
+      buildPlan(); render();
+    }).catch(function(err){
+      console.error(err);
+      if (pairInfo) pairInfo.textContent = '加载清单失败';
+    });
+
+    function pairKey(a,b){ return [a,b].sort().join('__'); }
+    function needPairsLeft(){
+      var shortage = names.reduce(function(acc, n){
+        var c = counts[n] || 0;
+        return acc + Math.max(0, minK - c);
+      }, 0);
+      return Math.ceil(shortage / 2);
+    }
+
+    function buildPlan(){
+      plan = [];
+      var cnt = {}; names.forEach(function(n){ cnt[n] = counts[n] || 0; });
+      var need = names.filter(function(n){ return (cnt[n] || 0) < minK; });
+      while (need.length) {
+        need.sort(function(a,b){ return (cnt[a]||0)-(cnt[b]||0); });
+        var x = need[0];
+        var candidates = names.slice().sort(function(a,b){ return (cnt[a]||0)-(cnt[b]||0); });
+        var paired = false;
+        for (var i=0;i<candidates.length;i++){
+          var y = candidates[i]; if (y===x) continue;
+          var key = pairKey(x,y); if (pairSeen[key]) continue;
+          plan.push({a:x,b:y}); pairSeen[key] = true;
+          cnt[x] = (cnt[x]||0)+1; cnt[y] = (cnt[y]||0)+1;
+          paired = true; break;
+        }
+        if (!paired) break;
+        need = names.filter(function(n){ return (cnt[n] || 0) < minK; });
       }
-      if (!paired) break;
-
-      need = names.filter(function(n){ return (cnt[n] || 0) < minK; });
+      for (var j=plan.length-1;j>0;j--){ var k=Math.floor(Math.random()*(j+1)); var t=plan[j]; plan[j]=plan[k]; plan[k]=t; }
+      idx = 0;
     }
 
-    // 打乱
-    for (var j=plan.length-1;j>0;j--){
-      var k = Math.floor(Math.random()*(j+1));
-      var tmp = plan[j]; plan[j] = plan[k]; plan[k] = tmp;
+    function render(){
+      if (idx >= plan.length){
+        var left = needPairsLeft();
+        if (prog) prog.textContent = plan.length + ' / ' + plan.length;
+        if (bar)  bar.style.width  = '100%';
+        if (pairInfo) pairInfo.textContent = left>0
+          ? '本轮已完成。剩余理论最少配对约 ' + left + ' 组（基于K=' + minK + '）。'
+          : '本轮已完成，感谢参与！';
+        if (imgA) imgA.removeAttribute('src');
+        if (imgB) imgB.removeAttribute('src');
+        return;
+      }
+      cur = plan[idx];
+      var urlA = images[names.indexOf(cur.a)];
+      var urlB = images[names.indexOf(cur.b)];
+      if (imgA) imgA.src = urlA;
+      if (imgB) imgB.src = urlB;
+
+      if (pairInfo) pairInfo.textContent = '第 ' + (idx+1) + '/' + plan.length + ' 组｜A: ' + cur.a + ' ｜ B: ' + cur.b;
+      if (prog) prog.textContent = idx + '/' + plan.length;
+      if (bar)  bar.style.width  = ((idx/plan.length)*100) + '%';
+
+      var next = plan[idx+1];
+      if (next){
+        var preA = new Image(), preB = new Image();
+        preA.decoding='async'; preB.decoding='async';
+        preA.loading='eager';  preB.loading='eager';
+        preA.src = images[names.indexOf(next.a)];
+        preB.src = images[names.indexOf(next.b)];
+      }
     }
-    idx = 0;
-  }
 
-  function render(){
-    if (idx >= plan.length){
-      var left = needPairsLeft();
-      if (prog) prog.textContent = plan.length + ' / ' + plan.length;
-      if (bar)  bar.style.width  = '100%';
-      if (pairInfo) pairInfo.textContent = left > 0
-        ? '本轮已完成。剩余理论最少配对约 ' + left + ' 组（基于K=' + minK + '）。'
-        : '本轮已完成，感谢参与！';
-      if (imgA) imgA.removeAttribute('src');
-      if (imgB) imgB.removeAttribute('src');
-      return;
+    function vote(choice){
+      if (idx >= plan.length) return;
+      if (choice !== 'skip'){
+        counts[cur.a] = (counts[cur.a]||0)+1;
+        counts[cur.b] = (counts[cur.b]||0)+1;
+      }
+      var payload = {
+        timestamp: new Date().toISOString(),
+        respondent_id: respondent || 'anonymous',
+        round_idx: idx + 1,
+        image_a: cur.a,
+        image_b: cur.b,
+        choice: choice,
+        pair_id: pairKey(cur.a, cur.b),
+        session_id: sessionId
+      };
+      fetch(ALIYUN_ENDPOINT, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload),
+        keepalive: true
+      }).catch(function(){});
+      idx++; render();
     }
-
-    cur = plan[idx];
-    var urlA = images[names.indexOf(cur.a)];
-    var urlB = images[names.indexOf(cur.b)];
-    if (imgA) imgA.src = urlA;
-    if (imgB) imgB.src = urlB;
-
-    if (pairInfo) pairInfo.textContent = '第 ' + (idx+1) + '/' + plan.length + ' 组｜A: ' + cur.a + ' ｜ B: ' + cur.b;
-    if (prog) prog.textContent = idx + '/' + plan.length;
-    if (bar)  bar.style.width  = ((idx / plan.length) * 100) + '%';
-
-    // 预取下一组
-    var next = plan[idx+1];
-    if (next){
-      var preA = new Image(), preB = new Image();
-      preA.decoding = 'async'; preB.decoding = 'async';
-      preA.loading  = 'eager'; preB.loading  = 'eager';
-      preA.src = images[names.indexOf(next.a)];
-      preB.src = images[names.indexOf(next.b)];
-    }
-  }
-
-  function vote(choice){
-    if (idx >= plan.length) return;
-    if (choice !== 'skip'){
-      counts[cur.a] = (counts[cur.a] || 0) + 1;
-      counts[cur.b] = (counts[cur.b] || 0) + 1;
-    }
-    var payload = {
-      timestamp: new Date().toISOString(),
-      respondent_id: respondent || 'anonymous',
-      round_idx: idx + 1,
-      image_a: cur.a,
-      image_b: cur.b,
-      choice: choice,
-      pair_id: pairKey(cur.a, cur.b),
-      session_id: sessionId
-    };
-    fetch(ALIYUN_ENDPOINT, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(payload),
-      keepalive: true
-    }).catch(function(){});
-
-    idx++; render();
-  }
-});
-</script>
+  });
+  </script>
+</body>
+</html>
