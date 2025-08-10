@@ -10,18 +10,16 @@
   (function () {
     const qs = new URLSearchParams(location.search);
     if (!qs.get('manifest')) {
-      // 按你的实际地址填好（以后更换只改这里）
       const manifest = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
-      const endpoint = 'https://script.google.com/macros/s/AKfycbzb-7yPi9N9cFZJ1UXZoU0ExbP5Pt3GBYmfMzOxbAXoPm0npX1Ldb2WNuDZ_RqWAJfE/exec';
+      const endpoint = 'https://daili-jogcnerjku.cn-hangzhou.fcapp.run/submit'; // ← 阿里云 /submit
 
-      // 为当前浏览器生成并复用一个 rid（也可以从链接里覆盖）
+      // 每个浏览器唯一 rid（生成一次并复用）
       let rid = qs.get('rid') || localStorage.getItem('rid');
       if (!rid) {
         rid = 'guest-' + Math.floor(Math.random() * 1e6);
         localStorage.setItem('rid', rid);
       }
 
-      // 可选默认项
       if (!qs.get('k')) qs.set('k', '5');
       if (!qs.get('allowTie')) qs.set('allowTie', '1');
 
@@ -31,80 +29,30 @@
 
       const url = new URL(location.href);
       url.search = qs.toString();
-      location.replace(url.toString()); // 刷到带参数的地址
+      location.replace(url.toString());
     }
   })();
   </script>
 
   <style>
-    :root {
-      --bg: #0b1020;
-      --card: #121933;
-      --muted: #94a3b8;
-      --text: #e5e7eb;
-      --accent: #60a5fa;
-    }
-
+    :root { --bg:#0b1020; --card:#121933; --muted:#94a3b8; --text:#e5e7eb; --accent:#60a5fa; }
     * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      background: linear-gradient(180deg, #0b1020, #0f172a);
-      color: var(--text);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, PingFang SC, Microsoft YaHei, Arial;
-    }
-
-    header {
-      padding: 16px 18px;
-      border-bottom: 1px solid #1f2a44;
-      background: rgba(0, 0, 0, .25);
-      backdrop-filter: blur(6px);
-    }
-
-    .wrap { max-width: 1080px; margin: 0 auto; padding: 12px; }
-
-    .pill {
-      display: inline-flex; gap: 8px; align-items: center;
-      padding: 6px 10px; border: 1px solid #334155; border-radius: 9999px;
-      background: #0b1226; color: #cbd5e1; font-size: 12px;
-    }
-
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
-
-    .slot {
-      position: relative; height: 60vh; min-height: 340px; border-radius: 16px; overflow: hidden;
-      background: #0b1226; border: 1px solid #1f2a44; display: flex; align-items: center; justify-content: center;
-    }
-
-    .slot img { max-width: 100%; max-height: 100%; object-fit: contain; }
-
-    .slot .tag {
-      position: absolute; top: 10px; left: 10px; background: rgba(2, 6, 23, .6);
-      border: 1px solid #334155; color: #cbd5e1; padding: 6px 10px; border-radius: 9999px; font-size: 12px;
-    }
-
-    .controls { display: flex; gap: 10px; justify-content: center; padding: 12px; }
-
-    .btn {
-      padding: 10px 14px; border: none; border-radius: 12px; background: #1e293b;
-      color: var(--text); cursor: pointer; min-width: 120px; font-weight: 600;
-    }
-
-    .btn.primary { background: linear-gradient(135deg, #2563eb, #60a5fa); }
-
-    .kbd {
-      padding: 2px 8px; border-radius: 8px; border: 1px solid #334155; background: #0b1226;
-      margin-left: 6px; font-size: 12px; color: #93c5fd;
-    }
-
-    .muted { color: #94a3b8; }
-
-    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-
-    .progress { height: 8px; background: #0b1226; border: 1px solid #334155; border-radius: 9999px; overflow: hidden; }
-    .progress>span { display: block; height: 100%; background: linear-gradient(90deg, #22d3ee, #60a5fa); width: 0%; }
-
-    .tip { font-size: 12px; color: #94a3b8; margin-top: 8px; }
+    body { margin:0; background:linear-gradient(180deg,#0b1020,#0f172a); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,Arial; }
+    header { padding:16px 18px; border-bottom:1px solid #1f2a44; background:rgba(0,0,0,.25); backdrop-filter:blur(6px); }
+    .wrap { max-width:1080px; margin:0 auto; padding:12px; }
+    .pill { display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border:1px solid #334155; border-radius:9999px; background:#0b1226; color:#cbd5e1; font-size:12px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+    .slot { position:relative; height:60vh; min-height:340px; border-radius:16px; overflow:hidden; background:#0b1226; border:1px solid #1f2a44; display:flex; align-items:center; justify-content:center; }
+    .slot img { max-width:100%; max-height:100%; object-fit:contain; }
+    .slot .tag { position:absolute; top:10px; left:10px; background:rgba(2,6,23,.6); border:1px solid #334155; color:#cbd5e1; padding:6px 10px; border-radius:9999px; font-size:12px; }
+    .controls { display:flex; gap:10px; justify-content:center; padding:12px; }
+    .btn { padding:10px 14px; border:none; border-radius:12px; background:#1e293b; color:var(--text); cursor:pointer; min-width:120px; font-weight:600; }
+    .btn.primary { background:linear-gradient(135deg,#2563eb,#60a5fa); }
+    .muted { color:#94a3b8; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .progress { height:8px; background:#0b1226; border:1px solid #334155; border-radius:9999px; overflow:hidden; }
+    .progress>span { display:block; height:100%; background:linear-gradient(90deg,#22d3ee,#60a5fa); width:0%; }
+    .tip { font-size:12px; color:#94a3b8; margin-top:8px; }
   </style>
 </head>
 
@@ -118,12 +66,11 @@
       </div>
       <div class="row"><span class="tip">按键：A=A好，L=B好，E=一样好，S=跳过</span></div>
     </div>
-    <div class="progress" style="margin-top: 10px"><span id="bar"></span></div>
+    <div class="progress" style="margin-top:10px"><span id="bar"></span></div>
   </header>
 
   <main class="wrap">
     <div class="grid">
-      <!-- 加载优化：lazy/async & A 首屏提权 -->
       <div class="slot"><span class="tag">A</span><img id="imgA" alt="A" loading="lazy" decoding="async" fetchpriority="high" /></div>
       <div class="slot"><span class="tag">B</span><img id="imgB" alt="B" loading="lazy" decoding="async" /></div>
     </div>
@@ -136,192 +83,162 @@
     <p class="muted" id="pairInfo">加载中…</p>
   </main>
 
+  <!-- 主逻辑 -->
   <script>
-    (function () {
-      // ===== Helpers =====
-      const $ = (s) => document.querySelector(s);
-      const qs = new URLSearchParams(location.search);
-      // 固定清单与后端（与上面的自动跳转保持一致）
-      const manifestURL = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
-      const endpointURL = 'https://daili-jogcnerjku.cn-hangzhou.fcapp.run';
+  document.addEventListener("DOMContentLoaded", function () {
+    const $ = (s) => document.querySelector(s);
+    const qs = new URLSearchParams(location.search);
 
-      const allowTie = qs.get("allowTie") !== "0";
-      const minK = parseInt(qs.get("k") || "5", 10); // 用于进度提示
-      const respondent = (qs.get("rid") || "").trim();
-      const sessionId = "" + Date.now();
+    const MANIFEST_URL = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
+    const ALIYUN_ENDPOINT = 'https://daili-jogcnerjku.cn-hangzhou.fcapp.run/submit'; // 你的阿里云 /submit
 
-      const prog = $("#prog"), bar = $("#bar"), who = $("#who"), sess = $("#sess");
-      const imgA = $("#imgA"), imgB = $("#imgB"), pairInfo = $("#pairInfo");
+    const allowTie = qs.get("allowTie") !== "0";
+    const minK = parseInt(qs.get("k") || "5", 10);
+    const respondent = (qs.get("rid") || "").trim();
+    const sessionId = String(Date.now());
 
-      who.textContent = respondent || "anonymous";
-      sess.textContent = sessionId;
+    const who = $("#who"), sess = $("#sess"), prog = $("#prog"), bar = $("#bar");
+    const imgA = $("#imgA"), imgB = $("#imgB"), pairInfo = $("#pairInfo");
 
-      if (!manifestURL || !endpointURL) {
-        alert("缺少必要参数：manifest 或 endpoint");
-        pairInfo.textContent = "缺少参数：请用 manifest 与 endpoint URL 打开本页。";
-        disableAll(); return;
-      }
+    if (who)  who.textContent  = respondent || "anonymous";
+    if (sess) sess.textContent = sessionId;
 
-      // ===== State =====
-      let images = [];   // URL 列表
-      let names = [];    // 文件名（用于显示/统计）
-      let counts = new Map(); // name -> 当前会话内计数
-      let pairSeen = new Set();
-      let plan = [];     // [{a,b}]
-      let idx = 0;       // 指针
-      let cur = null;
+    if (!MANIFEST_URL || !ALIYUN_ENDPOINT) {
+      if (pairInfo) pairInfo.textContent = "缺少参数：manifest 或 endpoint。";
+      return;
+    }
 
-      // ===== UI Buttons =====
-      $("#voteA").onclick  = () => vote(1);
-      $("#voteB").onclick  = () => vote(-1);
-      $("#voteTie").onclick = () => allowTie && vote(0);
-      $("#voteSkip").onclick = () => vote("skip");
+    let images = [], names = [], counts = new Map(), pairSeen = new Set(), plan = [];
+    let idx = 0, cur = null;
 
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "a" || e.key === "A") vote(1);
-        if (e.key === "l" || e.key === "L") vote(-1);
-        if (e.key === "e" || e.key === "E") if (allowTie) vote(0);
-        if (e.key === "s" || e.key === "S") vote("skip");
+    const btnA = $("#voteA"), btnB = $("#voteB"), btnT = $("#voteTie"), btnS = $("#voteSkip");
+    if (btnA) btnA.onclick = () => vote(1);
+    if (btnB) btnB.onclick = () => vote(-1);
+    if (btnT) btnT.onclick = () => allowTie && vote(0);
+    if (btnS) btnS.onclick = () => vote("skip");
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "a" || e.key === "A") vote(1);
+      if (e.key === "l" || e.key === "L") vote(-1);
+      if (e.key === "e" || e.key === "E") if (allowTie) vote(0);
+      if (e.key === "s" || e.key === "S") vote("skip");
+    });
+
+    // 载入清单
+    fetch(MANIFEST_URL)
+      .then(r => r.json())
+      .then(list => {
+        images = list.filter(u => typeof u === "string");
+        names  = images.map(u => u.split("/").pop());
+        names.forEach(n => counts.set(n, 0));
+        buildPlan();
+        render();
+      })
+      .catch(err => {
+        console.error(err);
+        if (pairInfo) pairInfo.textContent = "加载 manifest 失败";
       });
 
-      // ===== Start =====
-      fetch(manifestURL)
-        .then((r) => r.json())
-        .then((list) => {
-          images = list.filter((u) => typeof u === "string");
-          names  = images.map((u) => u.split("/").pop());
-          names.forEach((n) => counts.set(n, 0));
-          buildPlan();
-          render();
-        })
-        .catch((err) => {
-          console.error(err);
-          alert("加载 manifest 失败");
-        });
+    function pairKey(a, b) { return [a, b].sort().join("__"); }
+    function needPairsLeft() {
+      const shortage = names.reduce((acc, n) => acc + Math.max(0, minK - (counts.get(n) || 0)), 0);
+      return Math.ceil(shortage / 2);
+    }
 
-      // ===== Core logic =====
-      function pairKey(a, b) { return [a, b].sort().join("__"); }
-
-      function needPairsLeft() {
-        const shortage = names.reduce((acc, n) => acc + Math.max(0, minK - (counts.get(n) || 0)), 0);
-        return Math.ceil(shortage / 2);
-      }
-
-      function buildPlan() {
-        plan = [];
-        const cnt = new Map(counts);
-        // 小括号修正：确保 (cnt.get(n) || 0) < minK
-        const need = new Set(names.filter((n) => (cnt.get(n) || 0) < minK));
-        while (need.size) {
-          const x = Array.from(need).sort((a, b) =>
-            (cnt.get(a) || 0) - (cnt.get(b) || 0) || Math.random() - 0.5
-          )[0];
-          const candidates = names.slice().sort((a, b) =>
-            (cnt.get(a) || 0) - (cnt.get(b) || 0) || Math.random() - 0.5
-          );
-          let paired = false;
-          for (const y of candidates) {
-            if (y === x) continue;
-            const key = pairKey(x, y);
-            if (pairSeen.has(key)) continue;
-            plan.push({ a: x, b: y });
-            pairSeen.add(key);
-            cnt.set(x, (cnt.get(x) || 0) + 1);
-            cnt.set(y, (cnt.get(y) || 0) + 1);
-            if ((cnt.get(x) || 0) >= minK) need.delete(x);
-            if (need.has(y) && (cnt.get(y) || 0) >= minK) need.delete(y);
-            paired = true; break;
-          }
-          if (!paired) {
-            for (const y of names) {
-              if (y === x) continue;
-              const key = pairKey(x, y);
-              if (!pairSeen.has(key)) {
-                plan.push({ a: x, b: y });
-                pairSeen.add(key);
-                cnt.set(x, (cnt.get(x) || 0) + 1);
-                cnt.set(y, (cnt.get(y) || 0) + 1);
-                if ((cnt.get(x) || 0) >= minK) need.delete(x);
-                if (need.has(y) && (cnt.get(y) || 0) >= minK) need.delete(y);
-                paired = true; break;
-              }
-            }
-          }
-          if (!paired) break;
+    function buildPlan() {
+      plan = [];
+      const cnt = new Map(counts);
+      const need = new Set(names.filter(n => (cnt.get(n) || 0) < minK));
+      while (need.size) {
+        const x = Array.from(need).sort((a, b) =>
+          (cnt.get(a) || 0) - (cnt.get(b) || 0) || Math.random() - 0.5
+        )[0];
+        const candidates = names.slice().sort((a, b) =>
+          (cnt.get(a) || 0) - (cnt.get(b) || 0) || Math.random() - 0.5
+        );
+        let paired = false;
+        for (const y of candidates) {
+          if (y === x) continue;
+          const key = pairKey(x, y);
+          if (pairSeen.has(key)) continue;
+          plan.push({ a: x, b: y });
+          pairSeen.add(key);
+          cnt.set(x, (cnt.get(x) || 0) + 1);
+          cnt.set(y, (cnt.get(y) || 0) + 1);
+          if ((cnt.get(x) || 0) >= minK) need.delete(x);
+          if (need.has(y) && (cnt.get(y) || 0) >= minK) need.delete(y);
+          paired = true; break;
         }
-        shuffle(plan);
-        idx = 0;
+        if (!paired) break;
       }
+      shuffle(plan);
+      idx = 0;
+    }
 
-      function render() {
-        if (idx >= plan.length) {
-          const left = needPairsLeft();
-          prog.textContent = ${plan.length} / ${plan.length};
-          bar.style.width = "100%";
-          pairInfo.textContent = left > 0
-            ? 本轮已完成。剩余理论最少配对约 ${left} 组（基于K=${minK}的估计）。
-            : "本轮已完成，感谢参与！";
-          imgA.removeAttribute("src"); imgB.removeAttribute("src");
-          return;
-        }
-        cur = plan[idx];
-        const urlA = images[names.indexOf(cur.a)];
-        const urlB = images[names.indexOf(cur.b)];
-        imgA.src = urlA; imgB.src = urlB;
-        pairInfo.textContent = 第 ${idx + 1}/${plan.length} 组｜A: ${cur.a} ｜ B: ${cur.b};
-        prog.textContent = ${idx}/${plan.length};
-        bar.style.width = ${(idx / plan.length) * 100}%;
+    function render() {
+      if (idx >= plan.length) {
+        const left = needPairsLeft();
+        if (prog) prog.textContent = `${plan.length} / ${plan.length}`;
+        if (bar)  bar.style.width = "100%";
+        if (pairInfo) pairInfo.textContent = left > 0
+          ? `本轮已完成。剩余理论最少配对约 ${left} 组（基于K=${minK}）。`
+          : "本轮已完成，感谢参与！";
+        if (imgA) imgA.removeAttribute("src");
+        if (imgB) imgB.removeAttribute("src");
+        return;
+      }
+      cur = plan[idx];
+      const urlA = images[names.indexOf(cur.a)];
+      const urlB = images[names.indexOf(cur.b)];
+      if (imgA) imgA.src = urlA;
+      if (imgB) imgB.src = urlB;
 
-        // 预取下一组，提升切换速度
-        const next = plan[idx + 1];
-        if (next) {
-          const preA = new Image(), preB = new Image();
-          preA.decoding = 'async'; preB.decoding = 'async';
-          preA.loading  = 'eager'; preB.loading  = 'eager';
-          preA.src = images[names.indexOf(next.a)];
-          preB.src = images[names.indexOf(next.b)];
-        }
-      }
+      if (pairInfo) pairInfo.textContent = `第 ${idx + 1}/${plan.length} 组｜A: ${cur.a} ｜ B: ${cur.b}`;
+      if (prog)     prog.textContent     = `${idx}/${plan.length}`;
+      if (bar)      bar.style.width      = `${(idx / plan.length) * 100}%`;
 
-      function vote(choice) {
-        if (idx >= plan.length) return;
-        if (choice !== "skip") {
-          counts.set(cur.a, (counts.get(cur.a) || 0) + 1);
-          counts.set(cur.b, (counts.get(cur.b) || 0) + 1);
-        }
-        const payload = {
-          timestamp: new Date().toISOString(),
-          respondent_id: respondent || "anonymous",
-          round_idx: idx + 1,
-          image_a: cur.a,
-          image_b: cur.b,
-          choice: choice,
-          pair_id: pairKey(cur.a, cur.b),
-          session_id: sessionId,
-        };
-        // 发到后端（fire-and-forget）
-        fetch(endpointURL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }).catch(() => {});
-        idx++; render();
+      // 预取下一组
+      const next = plan[idx + 1];
+      if (next) {
+        const preA = new Image(), preB = new Image();
+        preA.decoding = 'async'; preB.decoding = 'async';
+        preA.loading  = 'eager'; preB.loading  = 'eager';
+        preA.src = images[names.indexOf(next.a)];
+        preB.src = images[names.indexOf(next.b)];
       }
+    }
 
-      function shuffle(arr) {
-        for (let i = arr.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [arr[i], arr[j]] = [arr[j], arr[i]];
-        }
+    function vote(choice) {
+      if (idx >= plan.length) return;
+      if (choice !== "skip") {
+        counts.set(cur.a, (counts.get(cur.a) || 0) + 1);
+        counts.set(cur.b, (counts.get(cur.b) || 0) + 1);
       }
-      function disableAll() {
-        ["voteA", "voteB", "voteTie", "voteSkip"].forEach((id) => {
-          const el = document.getElementById(id);
-          if (el) el.disabled = true;
-        });
-      }
-    })();
+      const payload = {
+        timestamp: new Date().toISOString(),
+        respondent_id: respondent || "anonymous",
+        round_idx: idx + 1,
+        image_a: cur.a,
+        image_b: cur.b,
+        choice,
+        pair_id: pairKey(cur.a, cur.b),
+        session_id: sessionId
+      };
+
+      // 直发阿里云后端（你的后端负责写入飞书）
+      fetch(ALIYUN_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        keepalive: true
+      }).catch(() => {});
+
+      idx++;
+      render();
+    }
+
+    function shuffle(arr){ for (let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
+  });
   </script>
 </body>
 </html>
