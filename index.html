@@ -9,16 +9,14 @@
   <script>
   (function () {
     const qs = new URLSearchParams(location.search);
-    if (!qs.get('manifest')) {
-      // 按你的实际地址填好（以后更换只改这里）
+    if (!qs.get('manifest') || !qs.get('endpoint')) {
+      // 以后改地址只改这里
       const manifest = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
-      const endpoint = 'https://script.google.com/macros/s/AKfycbzb-7yPi9N9cFZJ1UXZoU0ExbP5Pt3GBYmfMzOxbAXoPm0npX1Ldb2WNuDZ_RqWAJfE/exec';
+      const endpoint = 'https://1373549665-9ect2df42n.ap-guangzhou.tencentscf.com/submit';
 
-      // 为当前浏览器生成并复用一个 rid（也可用 URL 覆盖）
       let rid = qs.get('rid') || localStorage.getItem('rid');
       if (!rid) { rid = 'guest-' + Math.floor(Math.random() * 1e6); localStorage.setItem('rid', rid); }
 
-      // 默认项
       if (!qs.get('k')) qs.set('k', '5');
       if (!qs.get('allowTie')) qs.set('allowTie', '1');
 
@@ -48,7 +46,7 @@
       position:relative; height:60vh; min-height:340px; border-radius:16px; overflow:hidden;
       background:#0b1226; border:1px solid #1f2a44; display:flex; align-items:center; justify-content:center;
     }
-    .slot img { max-width:100%; max-height:100%; object-fit:contain; transition: opacity .12s ease; }
+    .slot img { max-width:100%; max-height:100%; object-fit:contain; transition:opacity .12s ease; }
     .slot .tag { position:absolute; top:10px; left:10px; background:rgba(2,6,23,.6); border:1px solid #334155; color:#cbd5e1; padding:6px 10px; border-radius:9999px; font-size:12px; }
     .controls { display:flex; gap:10px; justify-content:center; padding:12px; }
     .btn { padding:10px 14px; border:none; border-radius:12px; background:#1e293b; color:var(--text); cursor:pointer; min-width:120px; font-weight:600; }
@@ -76,7 +74,6 @@
 
   <main class="wrap">
     <div class="grid">
-      <!-- 加载优化：lazy/async & A 首屏提权 -->
       <div class="slot"><span class="tag">A</span><img id="imgA" alt="A" loading="lazy" decoding="async" fetchpriority="high" /></div>
       <div class="slot"><span class="tag">B</span><img id="imgB" alt="B" loading="lazy" decoding="async" /></div>
     </div>
@@ -94,8 +91,10 @@
       // ===== Helpers & Config =====
       const $ = (s) => document.querySelector(s);
       const qs = new URLSearchParams(location.search);
-      const manifestURL = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
-      const endpointURL = 'https://script.google.com/macros/s/AKfycbzb-7yPi9N9cFZJ1UXZoU0ExbP5Pt3GBYmfMzOxbAXoPm0npX1Ldb2WNuDZ_RqWAJfE/exec';
+
+      // 允许用 URL 覆盖；否则用默认
+      const manifestURL = qs.get('manifest') || 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
+      const endpointURL = qs.get('endpoint') || 'https://1373549665-9ect2df42n.ap-guangzhou.tencentscf.com/submit';
 
       const allowTie = qs.get("allowTie") !== "0";
       const minK = parseInt(qs.get("k") || "5", 10);
@@ -130,17 +129,16 @@
 
       // ===== Non-blocking 上报 =====
       function postResult(payload){
-  const data = JSON.stringify(payload);
-  // 用 fetch 直传 JSON；keepalive 确保在页面切换也能送达
-  fetch(endpointURL, {
-    method: "POST",
-    mode: "no-cors",
-    headers: { "Content-Type": "application/json" },
-    body: data,
-    keepalive: true
-  }).catch(()=>{});
-}
-
+        const data = JSON.stringify(payload);
+        fetch(endpointURL, {
+          method: "POST",
+          // 你的 SCF 已设置 CORS，正常可用；保留 no-cors 也行
+          // mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: data,
+          keepalive: true
+        }).catch(()=>{});
+      }
 
       // ===== UI Buttons（pointerdown 响应更快）=====
       ["voteA","voteB","voteTie","voteSkip"].forEach(id=>{
@@ -186,7 +184,6 @@
       function buildPlan() {
         plan = [];
         const cnt = new Map(counts);
-        // 小括号修正：确保 (cnt.get(n) || 0) < minK
         const need = new Set(names.filter((n) => (cnt.get(n) || 0) < minK));
         while (need.size) {
           const x = Array.from(need).sort((a, b) =>
@@ -290,12 +287,8 @@
 
         pairInfo.textContent = `第 ${idx + 1}/${plan.length} 组｜A: ${cur.a} ｜ B: ${cur.b}`;
         prog.textContent = `${idx}/${plan.length}`;
-        bar.style.width = `${(idx / plan.length) * 100}%`;
-
-        // 预取 & 预解码后续几组
+        bar.style.width = `${(idx / plan.length) * 100)%}`;
         warmUpFrom(idx + 1);
-
-        // 适度清理过旧缓存，控内存
         decodedCache.delete(idx - 2);
       }
 
@@ -315,7 +308,6 @@
           pair_id: pairKey(cur.a, cur.b),
           session_id: sessionId,
         };
-        // 非阻塞上报
         postResult(payload);
         idx++; render();
       }
@@ -324,12 +316,5 @@
       function disableAll() { ["voteA","voteB","voteTie","voteSkip"].forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled=true; }); }
     })();
   </script>
-
-  <!-- 可选：注册 Service Worker 做本地缓存，二次访问更快
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(()=>{});
-    }
-  </script> -->
 </body>
 </html>
