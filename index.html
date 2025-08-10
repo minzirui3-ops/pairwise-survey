@@ -130,17 +130,22 @@
 
       // ===== Non-blocking 上报 =====
       function postResult(payload){
-        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-        if (navigator.sendBeacon) {
-          navigator.sendBeacon(endpointURL, blob); // 后台上报
-        } else {
-          fetch(endpointURL, {
-            method: "POST", mode: "no-cors",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          }).catch(()=>{});
-        }
-      }
+  const data = JSON.stringify(payload);
+  if (navigator.sendBeacon) {
+    // 用 text/plain 避免 Google Apps Script 丢数据
+    navigator.sendBeacon(
+      endpointURL,
+      new Blob([data], { type: 'text/plain;charset=UTF-8' })
+    );
+  } else {
+    fetch(endpointURL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: data
+    }).catch(()=>{});
+  }
+}
 
       // ===== UI Buttons（pointerdown 响应更快）=====
       ["voteA","voteB","voteTie","voteSkip"].forEach(id=>{
