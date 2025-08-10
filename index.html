@@ -5,27 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>成对比较问卷（受访者）</title>
 
-  <!-- 自动补齐参数（manifest / endpoint / rid），让任何人打开根地址就能作答 -->
+  <!-- 自动补齐参数（manifest / rid），endpoint 强制使用固定地址 -->
   <script>
   (function () {
     const qs = new URLSearchParams(location.search);
-    if (!qs.get('manifest') || !qs.get('endpoint')) {
-      // 以后改地址只改这里
-      const manifest = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
-      const endpoint = 'https://1373549665-9ect2df42n.ap-guangzhou.tencentscf.com/submit';
 
-      let rid = qs.get('rid') || localStorage.getItem('rid');
-      if (!rid) { rid = 'guest-' + Math.floor(Math.random() * 1e6); localStorage.setItem('rid', rid); }
+    // 固定 manifest & endpoint（不再被 URL 覆盖）
+    const manifest = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
+    const endpoint = 'https://1373549665-9ect2df42n.ap-guangzhou.tencentscf.com/submit';
 
-      if (!qs.get('k')) qs.set('k', '5');
-      if (!qs.get('allowTie')) qs.set('allowTie', '1');
+    // rid 仍然支持首次自动生成并存本地
+    let rid = qs.get('rid') || localStorage.getItem('rid');
+    if (!rid) { rid = 'guest-' + Math.floor(Math.random() * 1e6); localStorage.setItem('rid', rid); }
 
-      qs.set('manifest', manifest);
-      qs.set('endpoint', endpoint);
-      qs.set('rid', rid);
+    if (!qs.get('k')) qs.set('k', '5');
+    if (!qs.get('allowTie')) qs.set('allowTie', '1');
 
-      const url = new URL(location.href);
-      url.search = qs.toString();
+    // 把 manifest 与 endpoint 写死到地址栏，避免旧参数干扰
+    qs.set('manifest', manifest);
+    qs.set('endpoint', endpoint);
+    qs.set('rid', rid);
+
+    const url = new URL(location.href);
+    url.search = qs.toString();
+    if (location.search !== ('?' + qs.toString())) {
       location.replace(url.toString()); // 刷到带参数的地址
     }
   })();
@@ -88,59 +91,52 @@
 
   <script>
     (function () {
-      // ===== Helpers & Config =====
+      // 固定端点（不再读 URL 参数）
+      const manifestURL = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
+      const endpointURL = 'https://1373549665-9ect2df42n.ap-guangzhou.tencentscf.com/submit';
+
       const $ = (s) => document.querySelector(s);
       const qs = new URLSearchParams(location.search);
 
-      // 允许用 URL 覆盖；否则用默认
-      const manifestURL = qs.get('manifest') || 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
-      const endpointURL = qs.get('endpoint') || 'https://1373549665-9ect2df42n.ap-guangzhou.tencentscf.com/submit';
-
       const allowTie = qs.get("allowTie") !== "0";
       const minK = parseInt(qs.get("k") || "5", 10);
-      const respondent = (qs.get("rid") || "").trim();
+      const respondent = (qs.get("rid") || localStorage.getItem('rid') || '').trim();
       const sessionId = "" + Date.now();
 
       const prog = $("#prog"), bar = $("#bar"), who = $("#who"), sess = $("#sess");
       const imgA = $("#imgA"), imgB = $("#imgB"), pairInfo = $("#pairInfo");
 
-      who.textContent = respondent || "anonymous";
-      sess.textContent = sessionId;
-
-      if (!manifestURL || !endpointURL) {
-        alert("缺少必要参数：manifest 或 endpoint");
-        pairInfo.textContent = "缺少参数：请用 manifest 与 endpoint URL 打开本页。";
-        disableAll(); return;
+      if (!respondent) {
+        const gen = 'guest-' + Math.floor(Math.random() * 1e6);
+        localStorage.setItem('rid', gen);
+        location.reload();
+        return;
       }
 
+      who.textContent = respondent;
+      sess.textContent = sessionId;
+
       // ===== State =====
-      let images = [];   // URL 列表
-      let names = [];    // 文件名（用于显示/统计）
-      let counts = new Map(); // name -> 当前会话内计数
+      let images = [], names = [];
+      let counts = new Map();
       let pairSeen = new Set();
-      let plan = [];     // [{a,b}]
-      let idx = 0;       // 指针
+      let plan = [];
+      let idx = 0;
       let cur = null;
 
-      // 预解码缓存与窗口
-      const DECODE_WINDOW = 4;                  // 预解码下一~下4组
-      const decodedCache = new Map();           // idx -> {aUrl,bUrl}
+      const DECODE_WINDOW = 4;
+      const decodedCache = new Map();
       const toWebp = (u)=> u.replace(/\.png$/i, '.webp');
 
-      // ===== Non-blocking 上报 =====
       function postResult(payload){
-        const data = JSON.stringify(payload);
         fetch(endpointURL, {
           method: "POST",
-          // 你的 SCF 已设置 CORS，正常可用；保留 no-cors 也行
-          // mode: "no-cors",
           headers: { "Content-Type": "application/json" },
-          body: data,
+          body: JSON.stringify(payload),
           keepalive: true
         }).catch(()=>{});
       }
 
-      // ===== UI Buttons（pointerdown 响应更快）=====
       ["voteA","voteB","voteTie","voteSkip"].forEach(id=>{
         const el = document.getElementById(id);
         el.addEventListener('pointerdown', e=>{
@@ -159,7 +155,6 @@
         if (e.key === "s" || e.key === "S") vote("skip");
       });
 
-      // ===== Start =====
       fetch(manifestURL)
         .then((r) => r.json())
         .then((list) => {
@@ -174,7 +169,6 @@
           alert("加载 manifest 失败");
         });
 
-      // ===== Core logic =====
       function pairKey(a, b) { return [a, b].sort().join("__"); }
       function needPairsLeft() {
         const shortage = names.reduce((acc, n) => acc + Math.max(0, minK - (counts.get(n) || 0)), 0);
@@ -226,14 +220,12 @@
         idx = 0;
       }
 
-      // 优先 webp 的设置（失败回退 png）
       function setWithFallback(img, urlPng){
         const urlWebp = toWebp(urlPng);
         img.onerror = function(){ img.onerror = null; img.src = urlPng; };
-        img.src = urlWebp; // 先试 webp
+        img.src = urlWebp;
       }
 
-      // 预解码
       function decodeImage(url){
         return new Promise((resolve)=>{
           const im = new Image();
@@ -257,73 +249,68 @@
       }
 
       function warmUpFrom(i){
-        for (let k = 0; k <= DECODE_WINDOW; k++) preparePair(i + k);
+        for (let k = 0; k <= 4; k++) preparePair(i + k);
       }
 
-function render() {
-  if (idx >= plan.length) {
-    const left = needPairsLeft();
-    prog.textContent = `${plan.length} / ${plan.length}`;
-    bar.style.width = "100%";
-    pairInfo.textContent = left > 0
-      ? `本轮已完成。剩余理论最少配对约 ${left} 组（基于K=${minK}的估计）。`
-      : "本轮已完成，感谢参与！";
-    imgA.removeAttribute("src");
-    imgB.removeAttribute("src");
-    return;
-  }
+      function render() {
+        if (idx >= plan.length) {
+          const left = needPairsLeft();
+          prog.textContent = `${plan.length} / ${plan.length}`;
+          bar.style.width = "100%";
+          pairInfo.textContent = left > 0
+            ? `本轮已完成。剩余理论最少配对约 ${left} 组（基于K=${minK}的估计）。`
+            : "本轮已完成，感谢参与！";
+          imgA.removeAttribute("src");
+          imgB.removeAttribute("src");
+          return;
+        }
 
-  cur = plan[idx];
-  const urlA = images[names.indexOf(cur.a)];
-  const urlB = images[names.indexOf(cur.b)];
+        cur = plan[idx];
+        const urlA = images[names.indexOf(cur.a)];
+        const urlB = images[names.indexOf(cur.b)];
 
-  const cached = decodedCache.get(idx);
-  if (cached) {
-    imgA.src = cached.aUrl;
-    imgB.src = cached.bUrl;
-  } else {
-    setWithFallback(imgA, urlA);
-    setWithFallback(imgB, urlB);
-  }
+        const cached = decodedCache.get(idx);
+        if (cached) {
+          imgA.src = cached.aUrl;
+          imgB.src = cached.bUrl;
+        } else {
+          setWithFallback(imgA, urlA);
+          setWithFallback(imgB, urlB);
+        }
 
-  // 显示当前配对信息（注意使用反引号和成对花括号）
-  pairInfo.textContent = `第 ${idx + 1}/${plan.length} 组｜A: ${cur.a} ｜ B: ${cur.b}`;
-  prog.textContent = `${idx}/${plan.length}`;
-  bar.style.width = `${(idx / plan.length) * 100}%`;
+        pairInfo.textContent = `第 ${idx + 1}/${plan.length} 组｜A: ${cur.a} ｜ B: ${cur.b}`;
+        prog.textContent = `${idx}/${plan.length}`;
+        bar.style.width = `${(idx / plan.length) * 100}%`;
 
-  // 预热下一些图片并适度清理缓存
-  warmUpFrom(idx + 1);
-  decodedCache.delete(idx - 2);
-}
+        warmUpFrom(idx + 1);
+        decodedCache.delete(idx - 2);
+      }
 
-function vote(choice) {
-  if (idx >= plan.length) return;
+      function vote(choice) {
+        if (idx >= plan.length) return;
 
-  if (choice !== "skip") {
-    counts.set(cur.a, (counts.get(cur.a) || 0) + 1);
-    counts.set(cur.b, (counts.get(cur.b) || 0) + 1);
-  }
+        if (choice !== "skip") {
+          counts.set(cur.a, (counts.get(cur.a) || 0) + 1);
+          counts.set(cur.b, (counts.get(cur.b) || 0) + 1);
+        }
 
-  const payload = {
-    timestamp: new Date().toISOString(),
-    respondent_id: respondent || "anonymous",
-    round_idx: idx + 1,
-    image_a: cur.a,
-    image_b: cur.b,
-    choice: choice,
-    pair_id: pairKey(cur.a, cur.b),
-    session_id: sessionId,
-  };
+        const payload = {
+          timestamp: new Date().toISOString(),
+          respondent_id: respondent || "anonymous",
+          round_idx: idx + 1,
+          image_a: cur.a,
+          image_b: cur.b,
+          choice: choice,
+          pair_id: pairKey(cur.a, cur.b),
+          session_id: sessionId
+        };
 
-  // 上报
-  postResult(payload);
-
-  idx++;
-  render();
-}
+        postResult(payload);
+        idx++;
+        render();
+      }
 
       function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } }
-      function disableAll() { ["voteA","voteB","voteTie","voteSkip"].forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled=true; }); }
     })();
   </script>
 </body>
