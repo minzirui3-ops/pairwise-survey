@@ -187,8 +187,8 @@
       // ===== Helpers =====
       const $ = (s) => document.querySelector(s);
       const qs = new URLSearchParams(location.search);
-      const manifestURL = qs.get("manifest"); // REQUIRED: hosted JSON of image URLs
-      const endpointURL = qs.get("endpoint"); // REQUIRED: Google Apps Script web app URL (POST JSON)
+      const manifestURL = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json'
+      const endpointURL = https://script.google.com/macros/s/AKfycbxHo03oX-TK5_JEXMRoHF5FJUWS493gaSguhajxqFqPEIzPy_5uvQhVH1dvNL_SGd_y/exec
       const allowTie = qs.get("allowTie") !== "0";
       const minK = parseInt(qs.get("k") || "5", 10); // used only to show progress hint
       const respondent = (qs.get("rid") || "").trim();
