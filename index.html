@@ -261,36 +261,39 @@
       }
 
       function render() {
-        if (idx >= plan.length) {
-          const left = needPairsLeft();
-          prog.textContent = `${plan.length} / ${plan.length}`;
-          bar.style.width = "100%";
-          pairInfo.textContent = left > 0
-            ? `本轮已完成。剩余理论最少配对约 ${left} 组（基于K=${minK}的估计）。`
-            : "本轮已完成，感谢参与！";
-          imgA.removeAttribute("src"); imgB.removeAttribute("src");
-          return;
-        }
+  if (idx >= plan.length) {
+    const left = needPairsLeft();
+    prog.textContent = `${plan.length} / ${plan.length}`;
+    bar.style.width = "100%";
+    pairInfo.textContent = left > 0
+      ? `本轮已完成。剩余理论最少配对约 ${left} 组（基于K=${minK}的估计）。`
+      : "本轮已完成，感谢参与！";
+    imgA.removeAttribute("src");
+    imgB.removeAttribute("src");
+    return;
+  }
 
-        cur = plan[idx];
-        const urlA = images[names.indexOf(cur.a)];
-        const urlB = images[names.indexOf(cur.b)];
+  cur = plan[idx];
+  const urlA = images[names.indexOf(cur.a)];
+  const urlB = images[names.indexOf(cur.b)];
 
-        const cached = decodedCache.get(idx);
-        if (cached) {
-          imgA.src = cached.aUrl;
-          imgB.src = cached.bUrl;
-        } else {
-          setWithFallback(imgA, urlA);
-          setWithFallback(imgB, urlB);
-        }
+  const cached = decodedCache.get(idx);
+  if (cached) {
+    imgA.src = cached.aUrl;
+    imgB.src = cached.bUrl;
+  } else {
+    setWithFallback(imgA, urlA);
+    setWithFallback(imgB, urlB);
+  }
 
-        pairInfo.textContent = `第 ${idx + 1}/${plan.length} 组｜A: ${cur.a} ｜ B: ${cur.b}`;
-        prog.textContent = `${idx}/${plan.length}`;
-        bar.style.width = `${(idx / plan.length) * 100}%`;
-        warmUpFrom(idx + 1);
-        decodedCache.delete(idx - 2);
-      }
+  // 这两行最容易因为拷贝引号/花括号问题报错
+  pairInfo.textContent = `第 ${idx + 1}/${plan.length} 组｜A: ${cur.a} ｜ B: ${cur.b}`;
+  prog.textContent = `${idx}/${plan.length}`;
+  bar.style.width = `${(idx / plan.length) * 100}%`;
+
+  warmUpFrom(idx + 1);
+  decodedCache.delete(idx - 2);
+}
 
       function vote(choice) {
         if (idx >= plan.length) return;
