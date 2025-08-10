@@ -188,7 +188,7 @@
       const $ = (s) => document.querySelector(s);
       const qs = new URLSearchParams(location.search);
       const manifestURL = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json'
-      const endpointURL ='https://script.google.com/macros/s/AKfycbz4YCTXrO3zojmn1DhHVbImNO8w2N5musYVVM47iKhtygMnO6snbSQ2maiujHm1p0_n/exec'
+      const endpointURL = 'https://script.google.com/macros/s/AKfycbz4YCTXrO3zojmn1DhHVbImNO8w2N5musYVVM47iKhtygMnO6snbSQ2maiujHm1p0_n/exec'
       const allowTie = qs.get("allowTie") !== "0";
       const minK = parseInt(qs.get("k") || "5", 10); // used only to show progress hint
       const respondent = (qs.get("rid") || "").trim();
