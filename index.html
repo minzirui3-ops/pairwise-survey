@@ -287,7 +287,7 @@
 
         pairInfo.textContent = `第 ${idx + 1}/${plan.length} 组｜A: ${cur.a} ｜ B: ${cur.b}`;
         prog.textContent = `${idx}/${plan.length}`;
-        bar.style.width = `${(idx / plan.length) * 100)%}`;
+        bar.style.width = `${(idx / plan.length) * 100%}`;
         warmUpFrom(idx + 1);
         decodedCache.delete(idx - 2);
       }
