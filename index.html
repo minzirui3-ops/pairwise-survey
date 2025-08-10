@@ -4,6 +4,38 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>成对比较问卷（受访者）</title>
+
+  <!-- 自动补齐参数（manifest / endpoint / rid），让任何人打开根地址就能作答 -->
+  <script>
+  (function () {
+    const qs = new URLSearchParams(location.search);
+    if (!qs.get('manifest')) {
+      // 按你的实际地址填好（以后更换只改这里）
+      const manifest = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
+      const endpoint = 'https://script.google.com/macros/s/AKfycbzb-7yPi9N9cFZJ1UXZoU0ExbP5Pt3GBYmfMzOxbAXoPm0npX1Ldb2WNuDZ_RqWAJfE/exec';
+
+      // 为当前浏览器生成并复用一个 rid（也可以从链接里覆盖）
+      let rid = qs.get('rid') || localStorage.getItem('rid');
+      if (!rid) {
+        rid = 'guest-' + Math.floor(Math.random() * 1e6);
+        localStorage.setItem('rid', rid);
+      }
+
+      // 可选默认项
+      if (!qs.get('k')) qs.set('k', '5');
+      if (!qs.get('allowTie')) qs.set('allowTie', '1');
+
+      qs.set('manifest', manifest);
+      qs.set('endpoint', endpoint);
+      qs.set('rid', rid);
+
+      const url = new URL(location.href);
+      url.search = qs.toString();
+      location.replace(url.toString()); // 刷到带参数的地址
+    }
+  })();
+  </script>
+
   <style>
     :root {
       --bg: #0b1020;
@@ -13,9 +45,7 @@
       --accent: #60a5fa;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -31,125 +61,50 @@
       backdrop-filter: blur(6px);
     }
 
-    .wrap {
-      max-width: 1080px;
-      margin: 0 auto;
-      padding: 12px;
-    }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 12px; }
 
     .pill {
-      display: inline-flex;
-      gap: 8px;
-      align-items: center;
-      padding: 6px 10px;
-      border: 1px solid #334155;
-      border-radius: 9999px;
-      background: #0b1226;
-      color: #cbd5e1;
-      font-size: 12px;
+      display: inline-flex; gap: 8px; align-items: center;
+      padding: 6px 10px; border: 1px solid #334155; border-radius: 9999px;
+      background: #0b1226; color: #cbd5e1; font-size: 12px;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 12px;
-    }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
 
     .slot {
-      position: relative;
-      height: 60vh;
-      min-height: 340px;
-      border-radius: 16px;
-      overflow: hidden;
-      background: #0b1226;
-      border: 1px solid #1f2a44;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: relative; height: 60vh; min-height: 340px; border-radius: 16px; overflow: hidden;
+      background: #0b1226; border: 1px solid #1f2a44; display: flex; align-items: center; justify-content: center;
     }
 
-    .slot img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-    }
+    .slot img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
     .slot .tag {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(2, 6, 23, .6);
-      border: 1px solid #334155;
-      color: #cbd5e1;
-      padding: 6px 10px;
-      border-radius: 9999px;
-      font-size: 12px;
+      position: absolute; top: 10px; left: 10px; background: rgba(2, 6, 23, .6);
+      border: 1px solid #334155; color: #cbd5e1; padding: 6px 10px; border-radius: 9999px; font-size: 12px;
     }
 
-    .controls {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      padding: 12px;
-    }
+    .controls { display: flex; gap: 10px; justify-content: center; padding: 12px; }
 
     .btn {
-      padding: 10px 14px;
-      border: none;
-      border-radius: 12px;
-      background: #1e293b;
-      color: var(--text);
-      cursor: pointer;
-      min-width: 120px;
-      font-weight: 600;
+      padding: 10px 14px; border: none; border-radius: 12px; background: #1e293b;
+      color: var(--text); cursor: pointer; min-width: 120px; font-weight: 600;
     }
 
-    .btn.primary {
-      background: linear-gradient(135deg, #2563eb, #60a5fa);
-    }
+    .btn.primary { background: linear-gradient(135deg, #2563eb, #60a5fa); }
 
     .kbd {
-      padding: 2px 8px;
-      border-radius: 8px;
-      border: 1px solid #334155;
-      background: #0b1226;
-      margin-left: 6px;
-      font-size: 12px;
-      color: #93c5fd;
+      padding: 2px 8px; border-radius: 8px; border: 1px solid #334155; background: #0b1226;
+      margin-left: 6px; font-size: 12px; color: #93c5fd;
     }
 
-    .muted {
-      color: #94a3b8;
-    }
+    .muted { color: #94a3b8; }
 
-    .row {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
-    .progress {
-      height: 8px;
-      background: #0b1226;
-      border: 1px solid #334155;
-      border-radius: 9999px;
-      overflow: hidden;
-    }
+    .progress { height: 8px; background: #0b1226; border: 1px solid #334155; border-radius: 9999px; overflow: hidden; }
+    .progress>span { display: block; height: 100%; background: linear-gradient(90deg, #22d3ee, #60a5fa); width: 0%; }
 
-    .progress>span {
-      display: block;
-      height: 100%;
-      background: linear-gradient(90deg, #22d3ee, #60a5fa);
-      width: 0%;
-    }
-
-    .tip {
-      font-size: 12px;
-      color: #94a3b8;
-      margin-top: 8px;
-    }
+    .tip { font-size: 12px; color: #94a3b8; margin-top: 8px; }
   </style>
 </head>
 
@@ -161,17 +116,16 @@
         <span class="pill">会话：<b id="sess">-</b></span>
         <span class="pill">进度：<b id="prog">0 / 0</b></span>
       </div>
-      <div class="row">
-        <span class="tip">按键：A=A好，L=B好，E=一样好，S=跳过</span>
-      </div>
+      <div class="row"><span class="tip">按键：A=A好，L=B好，E=一样好，S=跳过</span></div>
     </div>
     <div class="progress" style="margin-top: 10px"><span id="bar"></span></div>
   </header>
 
   <main class="wrap">
     <div class="grid">
-      <div class="slot"><span class="tag">A</span><img id="imgA" alt="A" /></div>
-      <div class="slot"><span class="tag">B</span><img id="imgB" alt="B" /></div>
+      <!-- 加载优化：lazy/async & A 首屏提权 -->
+      <div class="slot"><span class="tag">A</span><img id="imgA" alt="A" loading="lazy" decoding="async" fetchpriority="high" /></div>
+      <div class="slot"><span class="tag">B</span><img id="imgB" alt="B" loading="lazy" decoding="async" /></div>
     </div>
     <div class="controls">
       <button class="btn primary" id="voteA">A好 (A)</button>
@@ -187,19 +141,17 @@
       // ===== Helpers =====
       const $ = (s) => document.querySelector(s);
       const qs = new URLSearchParams(location.search);
-      const manifestURL = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json'
-      const endpointURL = 'https://script.google.com/macros/s/AKfycbzb-7yPi9N9cFZJ1UXZoU0ExbP5Pt3GBYmfMzOxbAXoPm0npX1Ldb2WNuDZ_RqWAJfE/exec'
+      // 固定清单与后端（与上面的自动跳转保持一致）
+      const manifestURL = 'https://minzirui3-ops.github.io/pairwise-survey/manifest.json';
+      const endpointURL = 'https://script.google.com/macros/s/AKfycbzb-7yPi9N9cFZJ1UXZoU0ExbP5Pt3GBYmfMzOxbAXoPm0npX1Ldb2WNuDZ_RqWAJfE/exec';
+
       const allowTie = qs.get("allowTie") !== "0";
-      const minK = parseInt(qs.get("k") || "5", 10); // used only to show progress hint
+      const minK = parseInt(qs.get("k") || "5", 10); // 用于进度提示
       const respondent = (qs.get("rid") || "").trim();
       const sessionId = "" + Date.now();
-      const prog = $("#prog"),
-        bar = $("#bar"),
-        who = $("#who"),
-        sess = $("#sess");
-      const imgA = $("#imgA"),
-        imgB = $("#imgB"),
-        pairInfo = $("#pairInfo");
+
+      const prog = $("#prog"), bar = $("#bar"), who = $("#who"), sess = $("#sess");
+      const imgA = $("#imgA"), imgB = $("#imgB"), pairInfo = $("#pairInfo");
 
       who.textContent = respondent || "anonymous";
       sess.textContent = sessionId;
@@ -207,22 +159,21 @@
       if (!manifestURL || !endpointURL) {
         alert("缺少必要参数：manifest 或 endpoint");
         pairInfo.textContent = "缺少参数：请用 manifest 与 endpoint URL 打开本页。";
-        disableAll();
-        return;
+        disableAll(); return;
       }
 
       // ===== State =====
-      let images = []; // array of URL strings
-      let names = []; // derived file names
-      let counts = new Map(); // name -> comparisons count (approx, from local session only)
+      let images = [];   // URL 列表
+      let names = [];    // 文件名（用于显示/统计）
+      let counts = new Map(); // name -> 当前会话内计数
       let pairSeen = new Set();
-      let plan = []; // [{a,b}]
-      let idx = 0; // pointer in plan
+      let plan = [];     // [{a,b}]
+      let idx = 0;       // 指针
       let cur = null;
 
       // ===== UI Buttons =====
-      $("#voteA").onclick = () => vote(1);
-      $("#voteB").onclick = () => vote(-1);
+      $("#voteA").onclick  = () => vote(1);
+      $("#voteB").onclick  = () => vote(-1);
       $("#voteTie").onclick = () => allowTie && vote(0);
       $("#voteSkip").onclick = () => vote("skip");
 
@@ -237,9 +188,8 @@
       fetch(manifestURL)
         .then((r) => r.json())
         .then((list) => {
-          // list = ["https://.../img01.jpg", "https://.../img02.jpg", ...]
           images = list.filter((u) => typeof u === "string");
-          names = images.map((u) => u.split("/").pop());
+          names  = images.map((u) => u.split("/").pop());
           names.forEach((n) => counts.set(n, 0));
           buildPlan();
           render();
@@ -250,44 +200,39 @@
         });
 
       // ===== Core logic =====
-      function pairKey(a, b) {
-        return [a, b].sort().join("__");
-      }
+      function pairKey(a, b) { return [a, b].sort().join("__"); }
+
       function needPairsLeft() {
-        const shortage = names.reduce(
-          (acc, n) => acc + Math.max(0, minK - (counts.get(n) || 0)),
-          0
-        );
+        const shortage = names.reduce((acc, n) => acc + Math.max(0, minK - (counts.get(n) || 0)), 0);
         return Math.ceil(shortage / 2);
       }
 
       function buildPlan() {
         plan = [];
         const cnt = new Map(counts);
-        const need = new Set(names.filter((n) => cnt.get(n) || 0 < minK));
-        // greedy fill until minK satisfied
+        // 小括号修正：确保 (cnt.get(n) || 0) < minK
+        const need = new Set(names.filter((n) => (cnt.get(n) || 0) < minK));
         while (need.size) {
-          const x = Array.from(need)
-            .sort((a, b) => (cnt.get(a) || 0) - (cnt.get(b) || 0) || Math.random() - 0.5)[0];
-          const candidates = names
-            .slice()
-            .sort((a, b) => (cnt.get(a) || 0) - (cnt.get(b) || 0) || Math.random() - 0.5);
+          const x = Array.from(need).sort((a, b) =>
+            (cnt.get(a) || 0) - (cnt.get(b) || 0) || Math.random() - 0.5
+          )[0];
+          const candidates = names.slice().sort((a, b) =>
+            (cnt.get(a) || 0) - (cnt.get(b) || 0) || Math.random() - 0.5
+          );
           let paired = false;
           for (const y of candidates) {
             if (y === x) continue;
             const key = pairKey(x, y);
-            if (pairSeen.has(key)) continue; // avoid duplicates this session
+            if (pairSeen.has(key)) continue;
             plan.push({ a: x, b: y });
             pairSeen.add(key);
             cnt.set(x, (cnt.get(x) || 0) + 1);
             cnt.set(y, (cnt.get(y) || 0) + 1);
             if ((cnt.get(x) || 0) >= minK) need.delete(x);
             if (need.has(y) && (cnt.get(y) || 0) >= minK) need.delete(y);
-            paired = true;
-            break;
+            paired = true; break;
           }
           if (!paired) {
-            // fallback: allow another unseen candidate ignoring need set
             for (const y of names) {
               if (y === x) continue;
               const key = pairKey(x, y);
@@ -298,12 +243,11 @@
                 cnt.set(y, (cnt.get(y) || 0) + 1);
                 if ((cnt.get(x) || 0) >= minK) need.delete(x);
                 if (need.has(y) && (cnt.get(y) || 0) >= minK) need.delete(y);
-                paired = true;
-                break;
+                paired = true; break;
               }
             }
           }
-          if (!paired) break; // exhausted
+          if (!paired) break;
         }
         shuffle(plan);
         idx = 0;
@@ -314,32 +258,37 @@
           const left = needPairsLeft();
           prog.textContent = `${plan.length} / ${plan.length}`;
           bar.style.width = "100%";
-          pairInfo.textContent =
-            left > 0
-              ? `本轮已完成。剩余理论最少配对约 ${left} 组（基于K=${minK}的估计）。`
-              : "本轮已完成，感谢参与！";
-          imgA.removeAttribute("src");
-          imgB.removeAttribute("src");
+          pairInfo.textContent = left > 0
+            ? `本轮已完成。剩余理论最少配对约 ${left} 组（基于K=${minK}的估计）。`
+            : "本轮已完成，感谢参与！";
+          imgA.removeAttribute("src"); imgB.removeAttribute("src");
           return;
         }
         cur = plan[idx];
         const urlA = images[names.indexOf(cur.a)];
         const urlB = images[names.indexOf(cur.b)];
-        imgA.src = urlA;
-        imgB.src = urlB;
+        imgA.src = urlA; imgB.src = urlB;
         pairInfo.textContent = `第 ${idx + 1}/${plan.length} 组｜A: ${cur.a} ｜ B: ${cur.b}`;
         prog.textContent = `${idx}/${plan.length}`;
         bar.style.width = `${(idx / plan.length) * 100}%`;
+
+        // 预取下一组，提升切换速度
+        const next = plan[idx + 1];
+        if (next) {
+          const preA = new Image(), preB = new Image();
+          preA.decoding = 'async'; preB.decoding = 'async';
+          preA.loading  = 'eager'; preB.loading  = 'eager';
+          preA.src = images[names.indexOf(next.a)];
+          preB.src = images[names.indexOf(next.b)];
+        }
       }
 
       function vote(choice) {
         if (idx >= plan.length) return;
-        // update local counts (skip not counted)
         if (choice !== "skip") {
           counts.set(cur.a, (counts.get(cur.a) || 0) + 1);
           counts.set(cur.b, (counts.get(cur.b) || 0) + 1);
         }
-        // send to backend
         const payload = {
           timestamp: new Date().toISOString(),
           respondent_id: respondent || "anonymous",
@@ -350,16 +299,14 @@
           pair_id: pairKey(cur.a, cur.b),
           session_id: sessionId,
         };
-        // fire-and-forget
+        // 发到后端（fire-and-forget）
         fetch(endpointURL, {
           method: "POST",
           mode: "no-cors",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         }).catch(() => {});
-
-        idx++;
-        render();
+        idx++; render();
       }
 
       function shuffle(arr) {
