@@ -260,7 +260,7 @@
         for (let k = 0; k <= DECODE_WINDOW; k++) preparePair(i + k);
       }
 
-      function render() {
+function render() {
   if (idx >= plan.length) {
     const left = needPairsLeft();
     prog.textContent = `${plan.length} / ${plan.length}`;
@@ -286,34 +286,41 @@
     setWithFallback(imgB, urlB);
   }
 
-  // 这两行最容易因为拷贝引号/花括号问题报错
+  // 显示当前配对信息（注意使用反引号和成对花括号）
   pairInfo.textContent = `第 ${idx + 1}/${plan.length} 组｜A: ${cur.a} ｜ B: ${cur.b}`;
   prog.textContent = `${idx}/${plan.length}`;
   bar.style.width = `${(idx / plan.length) * 100}%`;
 
+  // 预热下一些图片并适度清理缓存
   warmUpFrom(idx + 1);
   decodedCache.delete(idx - 2);
 }
 
-      function vote(choice) {
-        if (idx >= plan.length) return;
-        if (choice !== "skip") {
-          counts.set(cur.a, (counts.get(cur.a) || 0) + 1);
-          counts.set(cur.b, (counts.get(cur.b) || 0) + 1);
-        }
-        const payload = {
-          timestamp: new Date().toISOString(),
-          respondent_id: respondent || "anonymous",
-          round_idx: idx + 1,
-          image_a: cur.a,
-          image_b: cur.b,
-          choice: choice,
-          pair_id: pairKey(cur.a, cur.b),
-          session_id: sessionId,
-        };
-        postResult(payload);
-        idx++; render();
-      }
+function vote(choice) {
+  if (idx >= plan.length) return;
+
+  if (choice !== "skip") {
+    counts.set(cur.a, (counts.get(cur.a) || 0) + 1);
+    counts.set(cur.b, (counts.get(cur.b) || 0) + 1);
+  }
+
+  const payload = {
+    timestamp: new Date().toISOString(),
+    respondent_id: respondent || "anonymous",
+    round_idx: idx + 1,
+    image_a: cur.a,
+    image_b: cur.b,
+    choice: choice,
+    pair_id: pairKey(cur.a, cur.b),
+    session_id: sessionId,
+  };
+
+  // 上报
+  postResult(payload);
+
+  idx++;
+  render();
+}
 
       function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } }
       function disableAll() { ["voteA","voteB","voteTie","voteSkip"].forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled=true; }); }
